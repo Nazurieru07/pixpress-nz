@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixPress — Kompresor & Konverter Gambar Instan</title>
+  <meta name="description" content="Kompres dan konversi gambar JPG, PNG, ke WebP langsung di browser secara instan dan 100% privat tanpa upload ke server." />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- JSZip CDN untuk fitur Unduh Semua (.ZIP) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+
+  <!-- Konfigurasi Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              925: '#0b101d',
+              950: '#070a13',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Custom Keyframes & UI Micro-Interactions -->
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #070a13;
+      color: #f1f5f9;
+      overflow-x: hidden;
+    }
+
+    /* Animasi Orb Latar Belakang */
+    @keyframes floatOrbSlow {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(24px, -30px, 0) scale(1.08);
+      }
+    }
+
+    @keyframes floatOrbReverse {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(-28px, 22px, 0) scale(0.95);
+      }
+    }
+
+    .orb-animate-1 {
+      animation: floatOrbSlow 14s ease-in-out infinite;
+    }
+
+    .orb-animate-2 {
+      animation: floatOrbReverse 18s ease-in-out infinite;
+    }
+
+    /* Animasi Ikon Mengambang di Dropzone */
+    @keyframes floatIcon {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .animate-float-icon {
+      animation: floatIcon 3.2s ease-in-out infinite;
+    }
+
+    /* Animasi Ripple saat Dragover */
+    @keyframes pulseRing {
+      0% {
+        transform: scale(0.96);
+        opacity: 0.7;
+      }
+      70% {
+        transform: scale(1.03);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1.03);
+        opacity: 0;
+      }
+    }
+
+    .drag-active-ring::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 1.65rem;
+      border: 2px solid rgba(99, 102, 241, 0.75);
+      animation: pulseRing 1.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+      pointer-events: none;
+    }
+
+    /* Animasi Kemunculan Kartu Bertahap (Staggered Fade-In-Up) */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translate3d(0, 18px, 0) scale(0.985);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    .animate-card-enter {
+      opacity: 0;
+      animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Animasi Modal Scale-In */
+    @keyframes modalBackdropIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalPanelIn {
+      from {
+        opacity: 0;
+        transform: scale(0.94) translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .modal-backdrop-enter {
+      animation: modalBackdropIn 0.22s ease-out forwards;
+    }
+
+    .modal-panel-enter {
+      animation: modalPanelIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Pola Papan Catur untuk Preview Transparansi (PNG / WebP) */
+    .checkerboard-bg {
+      background-color: #111827;
+      background-image:
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+
+    /* Custom Range Slider Styling */
+    input[type='range'].pix-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #6366f1 var(--slider-pct, 80%), #1e293b var(--slider-pct, 80%));
+      outline: none;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    input[type='range'].pix-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #6366f1;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.55);
+      cursor: grab;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type='range'].pix-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.14);
+      box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.2);
+    }
+
+    input[type='range'].pix-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.06);
+    }
+
+    input[type='range'].pix-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #6366f1;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.55);
+      cursor: grab;
+      transition: transform 0.15s ease;
+    }
+
+    /* Custom Scrollbar Halus */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b101d;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+
+    /* Animasi Scroll Reveal untuk Bagian Hubungi Saya */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translate3d(0, 24px, 0);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+
+  <!-- Ambient Gradient Orbs (Dekorasi Latar Belakang) -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0" aria-hidden="true">
+    <div class="orb-animate-1 absolute -top-28 -left-24 w-80 h-80 sm:w-[28rem] sm:h-[28rem] rounded-full bg-indigo-600/20 blur-3xl"></div>
+    <div class="orb-animate-2 absolute top-1/3 -right-28 w-80 h-80 sm:w-[30rem] sm:h-[30rem] rounded-full bg-violet-600/15 blur-3xl"></div>
+    <div class="orb-animate-1 absolute -bottom-32 left-1/3 w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-emerald-500/10 blur-3xl"></div>
+  </div>
+
+  <!-- ================= HEADER ================= -->
+  <header class="relative z-10 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <!-- Brand Logo & Title -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
+          <!-- Custom SVG Icon: Aperture & Compress -->
+          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="4" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="M21 15l-5-5L5 21" />
+            <path d="M14 4v4h4" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
+              PixPress
+            </h1>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              v2.0
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-400">
+            Kompresor &amp; Konverter Gambar Instan di Browser
+          </p>
+        </div>
+      </div>
+
+      <!-- Privacy Status Badge -->
+      <div class="flex items-center gap-2 self-start sm:self-auto">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-medium shadow-sm">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+          </span>
+          <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          <span>100% Privat • Tanpa Upload Server</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="relative z-10 flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-9 space-y-7">
+
+    <!-- 1. Interactive Drag-and-Drop Zone -->
+    <section aria-label="Area Unggah Gambar">
+      <div
+        id="dropzone"
+        role="button"
+        tabindex="0"
+        aria-label="Seret dan lepas gambar atau klik untuk memilih file"
+        class="group relative rounded-3xl border-2 border-dashed border-slate-700/80 hover:border-indigo-500/80 bg-slate-900/50 hover:bg-slate-900/80 backdrop-blur-xl p-7 sm:p-10 text-center cursor-pointer transition-all duration-300 shadow-xl shadow-black/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
+      >
+        <!-- Hidden Multi-file Input -->
+        <input
+          id="fileInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          class="hidden"
+        />
+
+        <div class="max-w-lg mx-auto flex flex-col items-center">
+          <!-- Floating Upload Icon -->
+          <div class="animate-float-icon w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-400/30 flex items-center justify-center mb-4 group-hover:scale-105 group-hover:border-indigo-400/60 transition-transform duration-300 shadow-lg shadow-indigo-500/10">
+            <svg class="w-8 h-8 sm:w-10 sm:h-10 text-indigo-400 group-hover:text-indigo-300 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+
+          <h2 class="text-lg sm:text-2xl font-bold text-white tracking-tight">
+            Seret &amp; lepas gambar di sini
+          </h2>
+          <p class="mt-1.5 text-xs sm:text-sm text-slate-400 leading-relaxed">
+            Atau <span class="text-indigo-400 font-semibold underline decoration-indigo-400/40 underline-offset-4 group-hover:text-indigo-300">klik untuk memilih file</span> dari perangkat Anda. Mendukung banyak file sekaligus (<span class="text-slate-300 font-medium">JPG, PNG, WebP</span>).
+          </p>
+
+          <!-- Action Buttons inside Dropzone -->
+          <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              id="selectFilesBtn"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition-all duration-200"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>Pilih Gambar</span>
+            </button>
+
+            <button
+              type="button"
+              id="loadSampleBtn"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 active:scale-[0.98] text-slate-200 hover:text-white border border-slate-700/80 text-sm font-medium transition-all duration-200"
+            >
+              <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              <span>Muat Gambar Contoh</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Compression & Resize Control Panel -->
+    <section aria-label="Pengaturan Kompresi" class="rounded-3xl bg-slate-900/65 backdrop-blur-xl border border-slate-800/90 p-5 sm:p-6 shadow-xl shadow-black/20">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Format Output Selector -->
+        <div class="lg:col-span-5 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Format Output
+            </label>
+            <span class="text-[11px] text-indigo-400 font-medium">WebP lebih hemat ~30-75%</span>
+          </div>
+
+          <div id="formatPills" class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="radiogroup" aria-label="Pilih Format Output">
+            <button
+              type="button"
+              data-format="image/webp"
+              class="format-pill relative flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-500/15"
+            >
+              <span>WebP</span>
+              <span class="mt-0.5 text-[10px] font-medium px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">Rekomendasi</span>
+            </button>
+
+            <button
+              type="button"
+              data-format="image/jpeg"
+              class="format-pill flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-slate-800/60 border-slate-700/70 text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <span>JPEG</span>
+              <span class="mt-0.5 text-[10px] text-slate-400">Standar Foto</span>
+            </button>
+
+            <button
+              type="button"
+              data-format="image/png"
+              class="format-pill flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-slate-800/60 border-slate-700/70 text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <span>PNG</span>
+              <span class="mt-0.5 text-[10px] text-slate-400">Lossless</span>
+            </button>
+
+            <button
+              type="button"
+              data-format="original"
+              class="format-pill flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-slate-800/60 border-slate-700/70 text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <span>Asli</span>
+              <span class="mt-0.5 text-[10px] text-slate-400">Tetap</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quality Slider -->
+        <div class="lg:col-span-4 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label for="qualitySlider" class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Kualitas Kompresi
+            </label>
+            <div class="flex items-center gap-2">
+              <span id="qualityBadge" class="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 tabular-nums">
+                80%
+              </span>
+            </div>
+          </div>
+
+          <div class="pt-1.5">
+            <input
+              id="qualitySlider"
+              type="range"
+              min="10"
+              max="100"
+              value="80"
+              class="pix-slider"
+              style="--slider-pct: 77.7%"
+            />
+          </div>
+
+          <p id="qualityHint" class="text-xs text-slate-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0"></span>
+            <span>Kualitas seimbang — ideal untuk website &amp; media sosial.</span>
+          </p>
+        </div>
+
+        <!-- Max Width / Resize Selector -->
+        <div class="lg:col-span-3 space-y-2.5">
+          <label for="maxWidthSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Resolusi Maksimal (Lebar)
+          </label>
+
+          <div class="relative">
+            <select
+              id="maxWidthSelect"
+              class="w-full appearance-none rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 px-3.5 py-2.5 pr-10 text-sm font-medium text-white outline-none transition-all cursor-pointer"
+            >
+              <option value="original">Ukuran Asli (Tanpa Resize)</option>
+              <option value="1920">1920px (Full HD)</option>
+              <option value="1280">1280px (HD / Presentasi)</option>
+              <option value="800">800px (Web / Blog Ringan)</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-400">
+            Rasio aspek terjaga otomatis.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3. Animated Stats Summary & Batch Actions -->
+    <section id="summarySection" class="hidden space-y-4">
+      <div class="rounded-3xl bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-indigo-950/50 backdrop-blur-xl border border-slate-800/90 p-5 sm:p-6 shadow-xl shadow-black/25">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+
+          <!-- 4 Animated Stat Counters -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3.5">
+              <p class="text-xs text-slate-400 font-medium">Total File</p>
+              <p id="statTotalFiles" class="mt-1 text-lg sm:text-xl font-extrabold text-white tabular-nums">0 Gambar</p>
+            </div>
+
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3.5">
+              <p class="text-xs text-slate-400 font-medium">Ukuran Awal</p>
+              <p id="statOriginalSize" class="mt-1 text-lg sm:text-xl font-extrabold text-slate-200 tabular-nums">0 KB</p>
+            </div>
+
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-3.5">
+              <p class="text-xs text-slate-400 font-medium">Ukuran Akhir</p>
+              <p id="statCompressedSize" class="mt-1 text-lg sm:text-xl font-extrabold text-indigo-300 tabular-nums">0 KB</p>
+            </div>
+
+            <div class="rounded-2xl bg-emerald-950/30 border border-emerald-500/25 p-3.5">
+              <p class="text-xs text-emerald-300/80 font-medium">Total Hemat</p>
+              <div class="mt-1 flex items-baseline gap-1.5 flex-wrap">
+                <span id="statSavedBytes" class="text-lg sm:text-xl font-extrabold text-emerald-400 tabular-nums">0 KB</span>
+                <span id="statSavedPercent" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 tabular-nums">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Batch Action Buttons -->
+          <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              id="downloadAllBtn"
+              class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 active:scale-[0.98] text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all duration-200"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Unduh Semua (.ZIP)</span>
+            </button>
+
+            <button
+              type="button"
+              id="clearAllBtn"
+              class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/40 active:scale-[0.98] text-slate-300 border border-slate-700/80 font-semibold text-sm transition-all duration-200"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>Hapus Semua</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Responsive Image Result Cards Grid -->
+    <section aria-label="Hasil Kompresi Gambar">
+      <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <!-- Kartu hasil kompresi dirender secara dinamis lewat JavaScript -->
+      </div>
+    </section>
+
+    <!-- 5. Bagian Hubungi Saya (Integrasi Formspree AJAX) -->
+    <section id="contactSection" aria-labelledby="contactHeading" class="reveal-on-scroll pt-2">
+      <div class="relative rounded-3xl bg-slate-900/70 backdrop-blur-xl border border-slate-800/90 p-6 sm:p-8 lg:p-10 shadow-2xl shadow-black/30 overflow-hidden">
+        <!-- Dekorasi Glow Halus -->
+        <div class="pointer-events-none absolute -top-24 -right-24 w-64 h-64 rounded-full bg-indigo-500/10 blur-3xl" aria-hidden="true"></div>
+        <div class="pointer-events-none absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-violet-500/10 blur-3xl" aria-hidden="true"></div>
+
+        <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <!-- Kolom Kiri: Ajakan Kolaborasi & Info Singkat -->
+          <div class="lg:col-span-5 space-y-4">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold">
+              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+              <span>Kolaborasi &amp; Masukan</span>
+            </div>
+
+            <h2 id="contactHeading" class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Hubungi Saya
+            </h2>
+
+            <p class="text-sm text-slate-400 leading-relaxed">
+              Tertarik bekerja sama untuk proyek pengembangan web, punya masukan fitur baru untuk <span class="text-slate-200 font-medium">PixPress</span>, atau sekadar ingin menyapa? Kirim pesan langsung melalui formulir di samping.
+            </p>
+
+            <div class="pt-2 space-y-3">
+              <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs sm:text-sm font-bold text-slate-200">Pengiriman Instan Tanpa Refresh</h3>
+                  <p class="text-xs text-slate-400 mt-0.5">Gambar yang sedang Anda kompres di atas tetap aman tersimpan saat pesan dikirim.</p>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs sm:text-sm font-bold text-slate-200">Terbuka untuk Peluang &amp; Proyek</h3>
+                  <p class="text-xs text-slate-400 mt-0.5">Siap berdiskusi seputar Frontend, Web App, maupun pengembangan portofolio digital.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kolom Kanan: Formulir Formspree -->
+          <div class="lg:col-span-7">
+            <form
+              id="contactForm"
+              action="https://formspree.io/f/xkjrvree"
+              method="POST"
+              class="space-y-4 rounded-2xl bg-slate-950/55 border border-slate-800/80 p-5 sm:p-6"
+            >
+              <!-- Honeypot anti-spam bawaan Formspree -->
+              <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hidden" />
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Nama Lengkap -->
+                <div class="space-y-1.5">
+                  <label for="contactName" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Nama Lengkap <span class="text-rose-400">*</span>
+                  </label>
+                  <input
+                    id="contactName"
+                    name="name"
+                    type="text"
+                    required
+                    placeholder="Contoh: Budi Santoso"
+                    class="w-full rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all"
+                  />
+                </div>
+
+                <!-- Alamat Email -->
+                <div class="space-y-1.5">
+                  <label for="contactEmail" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Alamat Email <span class="text-rose-400">*</span>
+                  </label>
+                  <input
+                    id="contactEmail"
+                    name="email"
+                    type="email"
+                    required
+                    placeholder="nama@email.com"
+                    class="w-full rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <!-- Topik / Keperluan -->
+              <div class="space-y-1.5">
+                <label for="contactSubject" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Topik / Keperluan
+                </label>
+                <div class="relative">
+                  <select
+                    id="contactSubject"
+                    name="subject"
+                    class="w-full appearance-none rounded-xl bg-slate-900/90 hover:bg-slate-900 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 px-3.5 py-2.5 pr-10 text-sm text-white outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Tawaran Proyek / Kerja Sama">Tawaran Proyek / Kerja Sama</option>
+                    <option value="Masukan Fitur PixPress">Masukan Fitur PixPress</option>
+                    <option value="Pertanyaan Umum">Pertanyaan Umum</option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pesan -->
+              <div class="space-y-1.5">
+                <label for="contactMessage" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Pesan <span class="text-rose-400">*</span>
+                </label>
+                <textarea
+                  id="contactMessage"
+                  name="message"
+                  rows="4"
+                  required
+                  placeholder="Tuliskan detail proyek, masukan fitur, atau pertanyaan Anda di sini..."
+                  class="w-full rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition-all resize-y"
+                ></textarea>
+              </div>
+
+              <!-- Notifikasi Status Sukses / Gagal -->
+              <div
+                id="contactStatus"
+                role="status"
+                aria-live="polite"
+                class="hidden rounded-xl p-3.5 text-xs sm:text-sm font-medium border transition-all duration-300"
+              ></div>
+
+              <!-- Tombol Kirim -->
+              <div class="pt-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p class="text-[11px] text-slate-500">
+                  Didukung oleh Formspree • Data Anda aman &amp; tidak disebarkan.
+                </p>
+
+                <button
+                  type="submit"
+                  id="contactSubmitBtn"
+                  class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-600 hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                  <span>Kirim Pesan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= BEFORE/AFTER COMPARISON MODAL ================= -->
+  <div
+    id="compareModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modalTitle"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md"
+  >
+    <div id="modalPanel" class="relative w-full max-w-4xl rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-900/95">
+        <div class="min-w-0">
+          <h3 id="modalTitle" class="text-base sm:text-lg font-bold text-white truncate">
+            Perbandingan Sebelum &amp; Sesudah
+          </h3>
+          <p id="modalSubtitle" class="text-xs text-slate-400 truncate mt-0.5">
+            Geser pemisah di tengah untuk membandingkan detail kualitas
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <!-- Toggle Zoom 2x untuk inspeksi detail -->
+          <button
+            type="button"
+            id="toggleZoomBtn"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-colors"
+            title="Perbesar 2x untuk mengecek detail piksel"
+          >
+            <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+            <span id="zoomLabel">Zoom 1x</span>
+          </button>
+
+          <button
+            type="button"
+            id="closeModalBtn"
+            aria-label="Tutup modal perbandingan"
+            class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-rose-500/20 hover:text-rose-300 text-slate-300 border border-slate-700 flex items-center justify-center transition-colors"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Split-View Viewport -->
+      <div class="relative flex-1 overflow-hidden flex items-center justify-center p-4 sm:p-6 bg-slate-950/70 select-none">
+        <div
+          id="compareStage"
+          class="relative checkerboard-bg rounded-2xl overflow-hidden shadow-2xl border border-slate-700/70 cursor-ew-resize touch-none max-w-full max-h-[62vh]"
+        >
+          <!-- Layer 1 (Base): Gambar Hasil Kompresi (Kanan) -->
+          <img
+            id="compareCompressedImg"
+            src=""
+            alt="Hasil Kompresi"
+            draggable="false"
+            class="block max-w-full max-h-[62vh] w-auto h-auto object-contain transition-transform duration-200 origin-center"
+          />
+
+          <!-- Layer 2 (Clipped Overlay): Gambar Asli (Kiri) -->
+          <div
+            id="compareOriginalClip"
+            class="absolute inset-0 overflow-hidden"
+            style="clip-path: inset(0 50% 0 0);"
+          >
+            <img
+              id="compareOriginalImg"
+              src=""
+              alt="Gambar Asli"
+              draggable="false"
+              class="block w-full h-full object-contain transition-transform duration-200 origin-center"
+            />
+          </div>
+
+          <!-- Label Badges: Asli vs Hasil Kompresi -->
+          <div class="pointer-events-none absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-700/80 text-[11px] sm:text-xs font-semibold text-slate-200 shadow">
+            Asli • <span id="badgeOriginalSize" class="text-slate-300">0 KB</span>
+          </div>
+
+          <div class="pointer-events-none absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-indigo-950/85 backdrop-blur-md border border-indigo-500/40 text-[11px] sm:text-xs font-semibold text-indigo-200 shadow">
+            Hasil Kompresi • <span id="badgeCompressedSize" class="text-emerald-300">0 KB</span>
+          </div>
+
+          <!-- Garis Pembatas & Handle Geser -->
+          <div
+            id="compareDivider"
+            class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)] pointer-events-none"
+            style="left: 50%;"
+          >
+            <div class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-slate-900 shadow-xl border-2 border-indigo-500 flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              <svg class="w-5 h-5 -ml-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3.5 border-t border-slate-800 bg-slate-900/95 flex flex-wrap items-center justify-between gap-3">
+        <div id="modalStatsSummary" class="text-xs sm:text-sm text-slate-300 font-medium">
+          <!-- Diisi lewat JS -->
+        </div>
+
+        <button
+          type="button"
+          id="modalDownloadBtn"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs sm:text-sm font-semibold shadow-lg shadow-indigo-600/25 transition-all"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span>Unduh Hasil Kompresi</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= TOAST CONTAINER ================= -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-xs sm:max-w-sm pointer-events-none"></div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="relative z-10 border-t border-slate-800/70 bg-slate-950/60 backdrop-blur-md py-5 px-4 sm:px-6 text-center text-xs text-slate-400">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>
+        <span class="font-semibold text-slate-200">PixPress</span> — Dibangun dengan HTML5 Canvas API, FileReader &amp; Blob.
+      </p>
+      <p class="text-slate-500">
+        Semua gambar diproses langsung di perangkat Anda • Nol latensi server
+      </p>
+    </div>
+  </footer>
+
+  <!-- ================= APPLICATION LOGIC (VANILLA JS) ================= -->
+  <script>
+    (() => {
+      'use strict';
+
+      // -------------------- STATE APLIKASI --------------------
+      const state = {
+        items: [], // Array objek: { id, file, name, originalSize, originalType, originalUrl, origWidth, origHeight, compressedBlob, compressedUrl, compressedSize, newWidth, newHeight, outputType, isProcessing }
+        outputFormat: 'image/webp', // 'image/webp' | 'image/jpeg' | 'image/png' | 'original'
+        quality: 0.8,               // 0.10 - 1.00
+        maxWidth: 'original',       // 'original' | '1920' | '1280' | '800'
+        activeCompareId: null,
+        sliderPercent: 50,
+        isZoomed: false,
+        statsAnimationFrame: null,
+        displayedStats: {
+          files: 0,
+          origBytes: 0,
+          compBytes: 0,
+          savedBytes: 0,
+          savedPct: 0,
+        },
+      };
+
+      // -------------------- REFERENSI ELEMEN DOM --------------------
+      const dom = {
+        dropzone: document.getElementById('dropzone'),
+        fileInput: document.getElementById('fileInput'),
+        selectFilesBtn: document.getElementById('selectFilesBtn'),
+        loadSampleBtn: document.getElementById('loadSampleBtn'),
+        formatPills: document.querySelectorAll('.format-pill'),
+        qualitySlider: document.getElementById('qualitySlider'),
+        qualityBadge: document.getElementById('qualityBadge'),
+        qualityHint: document.getElementById('qualityHint'),
+        maxWidthSelect: document.getElementById('maxWidthSelect'),
+        summarySection: document.getElementById('summarySection'),
+        statTotalFiles: document.getElementById('statTotalFiles'),
+        statOriginalSize: document.getElementById('statOriginalSize'),
+        statCompressedSize: document.getElementById('statCompressedSize'),
+        statSavedBytes: document.getElementById('statSavedBytes'),
+        statSavedPercent: document.getElementById('statSavedPercent'),
+        downloadAllBtn: document.getElementById('downloadAllBtn'),
+        clearAllBtn: document.getElementById('clearAllBtn'),
+        cardsGrid: document.getElementById('cardsGrid'),
+        compareModal: document.getElementById('compareModal'),
+        modalPanel: document.getElementById('modalPanel'),
+        modalTitle: document.getElementById('modalTitle'),
+        modalSubtitle: document.getElementById('modalSubtitle'),
+        compareStage: document.getElementById('compareStage'),
+        compareCompressedImg: document.getElementById('compareCompressedImg'),
+        compareOriginalClip: document.getElementById('compareOriginalClip'),
+        compareOriginalImg: document.getElementById('compareOriginalImg'),
+        compareDivider: document.getElementById('compareDivider'),
+        badgeOriginalSize: document.getElementById('badgeOriginalSize'),
+        badgeCompressedSize: document.getElementById('badgeCompressedSize'),
+        modalStatsSummary: document.getElementById('modalStatsSummary'),
+        modalDownloadBtn: document.getElementById('modalDownloadBtn'),
+        toggleZoomBtn: document.getElementById('toggleZoomBtn'),
+        zoomLabel: document.getElementById('zoomLabel'),
+        closeModalBtn: document.getElementById('closeModalBtn'),
+        toastContainer: document.getElementById('toastContainer'),
+      };
+
+      // -------------------- UTILITAS FORMAT & HELPER --------------------
+      function formatBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const val = bytes / Math.pow(1024, i);
+        return `${val >= 100 || i === 0 ? val.toFixed(0) : val.toFixed(2)} ${units[i]}`;
+      }
+
+      function getMimeLabel(mime) {
+        if (mime === 'image/webp') return 'WEBP';
+        if (mime === 'image/jpeg') return 'JPEG';
+        if (mime === 'image/png') return 'PNG';
+        return 'IMG';
+      }
+
+      function getExtensionFromMime(mime) {
+        if (mime === 'image/webp') return 'webp';
+        if (mime === 'image/jpeg') return 'jpg';
+        if (mime === 'image/png') return 'png';
+        return 'webp';
+      }
+
+      function buildOutputFilename(originalName, outputMime) {
+        const baseName = originalName.replace(/\.[^/.]+$/, '');
+        const ext = getExtensionFromMime(outputMime);
+        return `${baseName}-pixpress.${ext}`;
+      }
+
+      function generateId() {
+        return 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+      }
+
+      // -------------------- TOAST NOTIFICATION (PENGGANTI ALERT) --------------------
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        const colors = {
+          success: 'bg-slate-900/95 border-emerald-500/40 text-emerald-200',
+          info: 'bg-slate-900/95 border-indigo-500/40 text-slate-100',
+          warning: 'bg-slate-900/95 border-amber-500/40 text-amber-200',
+        };
+        const dotColors = {
+          success: 'bg-emerald-400',
+          info: 'bg-indigo-400',
+          warning: 'bg-amber-400',
+        };
+
+        toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl border backdrop-blur-xl shadow-xl text-xs sm:text-sm font-medium transition-all duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+        toast.innerHTML = `
+          <span class="w-2 h-2 rounded-full shrink-0 ${dotColors[type] || dotColors.info}"></span>
+          <span>${message}</span>
+        `;
+
+        dom.toastContainer.appendChild(toast);
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+
+        setTimeout(() => {
+          toast.classList.add('translate-y-2', 'opacity-0');
+          setTimeout(() => toast.remove(), 300);
+        }, 3200);
+      }
+
+      // -------------------- PEMROSESAN GAMBAR (CANVAS API) --------------------
+      function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function loadImageElement(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Format gambar tidak dapat dimuat.'));
+          img.src = src;
+        });
+      }
+
+      async function compressImageItem(item) {
+        item.isProcessing = true;
+
+        try {
+          const img = await loadImageElement(item.originalUrl);
+          item.origWidth = img.naturalWidth;
+          item.origHeight = img.naturalHeight;
+
+          // Tentukan dimensi target sambil menjaga rasio aspek
+          let targetWidth = img.naturalWidth;
+          let targetHeight = img.naturalHeight;
+
+          if (state.maxWidth !== 'original') {
+            const maxW = parseInt(state.maxWidth, 10);
+            if (!isNaN(maxW) && img.naturalWidth > maxW) {
+              targetWidth = maxW;
+              targetHeight = Math.round((img.naturalHeight / img.naturalWidth) * maxW);
+            }
+          }
+
+          // Tentukan MIME output
+          let targetMime = state.outputFormat === 'original' ? item.originalType : state.outputFormat;
+          if (!['image/webp', 'image/jpeg', 'image/png'].includes(targetMime)) {
+            targetMime = 'image/webp';
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+
+          // Jika output JPEG, isi latar belakang putih agar area transparan PNG/WebP tidak menjadi hitam
+          if (targetMime === 'image/jpeg') {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+          const blob = await new Promise((resolve) => {
+            canvas.toBlob(
+              (resultBlob) => resolve(resultBlob),
+              targetMime,
+              targetMime === 'image/png' ? undefined : state.quality
+            );
+          });
+
+          if (!blob) {
+            throw new Error('Gagal mengonversi canvas ke Blob.');
+          }
+
+          // Bersihkan ObjectURL lama jika ada
+          if (item.compressedUrl) {
+            URL.revokeObjectURL(item.compressedUrl);
+          }
+
+          item.compressedBlob = blob;
+          item.compressedUrl = URL.createObjectURL(blob);
+          item.compressedSize = blob.size;
+          item.newWidth = targetWidth;
+          item.newHeight = targetHeight;
+          item.outputType = targetMime;
+        } catch (err) {
+          console.error(err);
+          showToast(`Gagal memproses ${item.name}`, 'warning');
+        } finally {
+          item.isProcessing = false;
+        }
+      }
+
+      // Menambahkan file baru ke antrean dan memprosesnya
+      async function handleIncomingFiles(fileList) {
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        const files = Array.from(fileList).filter((f) => validTypes.includes(f.type));
+
+        if (files.length === 0) {
+          showToast('Pilih file gambar berformat JPG, PNG, atau WebP.', 'warning');
+          return;
+        }
+
+        const newItems = [];
+        for (const file of files) {
+          const originalUrl = await readFileAsDataURL(file);
+          const item = {
+            id: generateId(),
+            file,
+            name: file.name,
+            originalSize: file.size,
+            originalType: file.type,
+            originalUrl,
+            origWidth: 0,
+            origHeight: 0,
+            compressedBlob: null,
+            compressedUrl: '',
+            compressedSize: 0,
+            newWidth: 0,
+            newHeight: 0,
+            outputType: state.outputFormat,
+            isProcessing: true,
+          };
+          state.items.unshift(item);
+          newItems.push(item);
+        }
+
+        renderCards(true);
+        updateSummaryStats();
+
+        await Promise.all(newItems.map((item) => compressImageItem(item)));
+
+        renderCards(false);
+        updateSummaryStats();
+        showToast(`${newItems.length} gambar berhasil diproses!`, 'success');
+      }
+
+      // Memproses ulang semua gambar saat pengaturan (Format/Kualitas/Resolusi) berubah
+      async function reprocessAllItems() {
+        if (state.items.length === 0) return;
+
+        await Promise.all(state.items.map((item) => compressImageItem(item)));
+        renderCards(false);
+        updateSummaryStats();
+
+        // Jika modal perbandingan sedang terbuka, perbarui tampilan modal juga
+        if (state.activeCompareId) {
+          const activeItem = state.items.find((i) => i.id === state.activeCompareId);
+          if (activeItem) {
+            populateCompareModal(activeItem);
+          }
+        }
+      }
+
+      // -------------------- GENERATOR GAMBAR CONTOH (1-KLIK DEMO) --------------------
+      async function loadSampleImages() {
+        dom.loadSampleBtn.disabled = true;
+        const originalBtnHTML = dom.loadSampleBtn.innerHTML;
+        dom.loadSampleBtn.innerHTML = `
+          <svg class="w-4 h-4 animate-spin text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+          </svg>
+          <span>Menyiapkan Contoh...</span>
+        `;
+
+        try {
+          // Contoh 1: Ilustrasi Pemandangan Pegunungan Aurora (1600x1000 PNG)
+          const canvas1 = document.createElement('canvas');
+          canvas1.width = 1600;
+          canvas1.height = 1000;
+          const ctx1 = canvas1.getContext('2d');
+
+          // Gradasi langit malam
+          const skyGrad = ctx1.createLinearGradient(0, 0, 0, 720);
+          skyGrad.addColorStop(0, '#090d24');
+          skyGrad.addColorStop(0.45, '#1e1b4b');
+          skyGrad.addColorStop(1, '#312e81');
+          ctx1.fillStyle = skyGrad;
+          ctx1.fillRect(0, 0, 1600, 1000);
+
+          // Efek Aurora
+          const auroraGrad = ctx1.createRadialGradient(850, 260, 40, 850, 260, 650);
+          auroraGrad.addColorStop(0, 'rgba(52, 211, 153, 0.55)');
+          auroraGrad.addColorStop(0.5, 'rgba(99, 102, 241, 0.25)');
+          auroraGrad.addColorStop(1, 'rgba(15, 23, 42, 0)');
+          ctx1.fillStyle = auroraGrad;
+          ctx1.fillRect(0, 0, 1600, 700);
+
+          // Bintang-bintang
+          for (let i = 0; i < 140; i++) {
+            const sx = (i * 197) % 1600;
+            const sy = (i * 89) % 520;
+            const sr = (i % 3) * 0.9 + 0.8;
+            ctx1.fillStyle = `rgba(255, 255, 255, ${0.35 + (i % 5) * 0.13})`;
+            ctx1.beginPath();
+            ctx1.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx1.fill();
+          }
+
+          // Bulan purnama bercahaya
+          ctx1.fillStyle = '#fef3c7';
+          ctx1.beginPath();
+          ctx1.arc(1240, 210, 62, 0, Math.PI * 2);
+          ctx1.fill();
+
+          // Pegunungan berlapis
+          const drawMountain = (points, color) => {
+            ctx1.fillStyle = color;
+            ctx1.beginPath();
+            ctx1.moveTo(0, 1000);
+            points.forEach(([px, py]) => ctx1.lineTo(px, py));
+            ctx1.lineTo(1600, 1000);
+            ctx1.closePath();
+            ctx1.fill();
+          };
+
+          drawMountain([[0, 640], [280, 420], [560, 610], [890, 360], [1220, 580], [1600, 430]], '#1e293b');
+          drawMountain([[0, 720], [210, 530], [510, 710], [780, 480], [1120, 690], [1420, 510], [1600, 670]], '#0f172a');
+
+          // Danau refleksi di bagian bawah
+          const lakeGrad = ctx1.createLinearGradient(0, 700, 0, 1000);
+          lakeGrad.addColorStop(0, '#0f172a');
+          lakeGrad.addColorStop(1, '#1e1b4b');
+          ctx1.fillStyle = lakeGrad;
+          ctx1.fillRect(0, 710, 1600, 290);
+
+          // Garis riak air
+          ctx1.strokeStyle = 'rgba(129, 140, 248, 0.25)';
+          ctx1.lineWidth = 2;
+          for (let y = 735; y < 980; y += 24) {
+            ctx1.beginPath();
+            ctx1.moveTo(140 + (y % 40), y);
+            ctx1.lineTo(1460 - (y % 55), y);
+            ctx1.stroke();
+          }
+
+          // Contoh 2: Poster Geometris Modern (1400x900 PNG)
+          const canvas2 = document.createElement('canvas');
+          canvas2.width = 1400;
+          canvas2.height = 900;
+          const ctx2 = canvas2.getContext('2d');
+
+          const bgGrad2 = ctx2.createLinearGradient(0, 0, 1400, 900);
+          bgGrad2.addColorStop(0, '#312e81');
+          bgGrad2.addColorStop(0.5, '#6d28d9');
+          bgGrad2.addColorStop(1, '#be185d');
+          ctx2.fillStyle = bgGrad2;
+          ctx2.fillRect(0, 0, 1400, 900);
+
+          // Lingkaran & pola abstrak
+          for (let i = 0; i < 18; i++) {
+            ctx2.fillStyle = `rgba(255, 255, 255, ${0.04 + (i % 4) * 0.03})`;
+            ctx2.beginPath();
+            ctx2.arc(200 + (i * 170) % 1100, 180 + (i * 130) % 600, 90 + (i % 5) * 45, 0, Math.PI * 2);
+            ctx2.fill();
+          }
+
+          // Kartu kaca di tengah poster
+          ctx2.fillStyle = 'rgba(15, 23, 42, 0.55)';
+          ctx2.beginPath();
+          ctx2.roundRect(260, 220, 880, 460, 36);
+          ctx2.fill();
+
+          ctx2.fillStyle = '#ffffff';
+          ctx2.font = 'bold 64px Inter, sans-serif';
+          ctx2.textAlign = 'center';
+          ctx2.fillText('PIXPRESS STUDIO', 700, 420);
+
+          ctx2.fillStyle = '#cbd5e1';
+          ctx2.font = '500 30px Inter, sans-serif';
+          ctx2.fillText('Sampel Resolusi Tinggi • Uji Kompresi & WebP', 700, 490);
+
+          const toFile = (canvas, filename) =>
+            new Promise((resolve) => {
+              canvas.toBlob((blob) => {
+                resolve(new File([blob], filename, { type: 'image/png' }));
+              }, 'image/png');
+            });
+
+          const [file1, file2] = await Promise.all([
+            toFile(canvas1, 'contoh-pemandangan-aurora.png'),
+            toFile(canvas2, 'contoh-poster-studio.png'),
+          ]);
+
+          await handleIncomingFiles([file1, file2]);
+        } finally {
+          dom.loadSampleBtn.disabled = false;
+          dom.loadSampleBtn.innerHTML = originalBtnHTML;
+        }
+      }
+
+      // -------------------- RENDERING KARTU HASIL --------------------
+      function renderCards(withStagger = false) {
+        if (state.items.length === 0) {
+          dom.cardsGrid.innerHTML = '';
+          dom.summarySection.classList.add('hidden');
+          return;
+        }
+
+        dom.summarySection.classList.remove('hidden');
+
+        dom.cardsGrid.innerHTML = state.items
+          .map((item, idx) => {
+            const origFmt = getMimeLabel(item.originalType);
+            const outFmt = getMimeLabel(item.outputType);
+            const savedBytes = item.originalSize - item.compressedSize;
+            const rawPct = item.originalSize > 0 ? (savedBytes / item.originalSize) * 100 : 0;
+            const isSaved = savedBytes > 0;
+            const pctText = isSaved ? `-${rawPct.toFixed(1)}%` : `+${Math.abs(rawPct).toFixed(1)}%`;
+            const barWidth = isSaved ? Math.min(Math.max(rawPct, 4), 100) : 100;
+
+            const animClass = withStagger ? 'animate-card-enter' : '';
+            const animDelay = withStagger ? `style="animation-delay: ${Math.min(idx * 75, 450)}ms;"` : '';
+
+            return `
+              <article
+                data-id="${item.id}"
+                ${animDelay}
+                class="${animClass} group rounded-3xl bg-slate-900/75 hover:bg-slate-900/95 backdrop-blur-xl border border-slate-800/90 hover:border-indigo-500/40 overflow-hidden shadow-xl shadow-black/25 hover:-translate-y-1 transition-all duration-300 flex flex-col"
+              >
+                <!-- Preview Thumbnail -->
+                <div class="relative h-48 checkerboard-bg overflow-hidden border-b border-slate-800/80">
+                  <img
+                    src="${item.compressedUrl || item.originalUrl}"
+                    alt="${item.name}"
+                    class="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+
+                  <!-- Badge Konversi Format -->
+                  <div class="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/85 backdrop-blur-md border border-slate-700/80 text-[11px] font-bold text-slate-200">
+                    <span>${origFmt}</span>
+                    <svg class="w-3 h-3 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    <span class="text-indigo-300">${outFmt}</span>
+                  </div>
+
+                  <!-- Badge Persentase Hemat -->
+                  <div class="absolute top-3 right-3 px-2.5 py-1 rounded-lg text-xs font-extrabold shadow-md tabular-nums ${
+                    isSaved
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 backdrop-blur-md'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 backdrop-blur-md'
+                  }">
+                    ${item.isProcessing ? 'Memproses...' : pctText}
+                  </div>
+
+                  <!-- Tombol Hapus Item -->
+                  <button
+                    type="button"
+                    data-action="delete"
+                    data-id="${item.id}"
+                    title="Hapus gambar ini"
+                    aria-label="Hapus ${item.name}"
+                    class="absolute bottom-3 right-3 w-8 h-8 rounded-xl bg-slate-950/80 hover:bg-rose-500/90 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center transition-colors"
+                  >
+                    <svg class="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Informasi File & Ukuran -->
+                <div class="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div class="space-y-2.5">
+                    <div>
+                      <h3 class="text-sm font-bold text-white truncate" title="${item.name}">
+                        ${item.name}
+                      </h3>
+                      <p class="text-xs text-slate-400 mt-0.5 tabular-nums">
+                        Resolusi: <span class="text-slate-300">${item.origWidth}×${item.origHeight}</span>
+                        ${
+                          item.newWidth !== item.origWidth
+                            ? `<span class="text-indigo-400 font-semibold"> → ${item.newWidth}×${item.newHeight}</span>`
+                            : ''
+                        }
+                      </p>
+                    </div>
+
+                    <!-- Perbandingan Ukuran Sebelum vs Sesudah -->
+                    <div class="flex items-center justify-between text-xs pt-1">
+                      <span class="text-slate-400 line-through tabular-nums">${formatBytes(item.originalSize)}</span>
+                      <span class="font-bold text-sm text-white tabular-nums">${formatBytes(item.compressedSize)}</span>
+                    </div>
+
+                    <!-- Animated Savings Progress Meter -->
+                    <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <div
+                        class="h-full rounded-full transition-all duration-700 ease-out ${
+                          isSaved ? 'bg-gradient-to-r from-indigo-500 to-emerald-400' : 'bg-amber-500'
+                        }"
+                        style="width: ${barWidth}%"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <!-- Tombol Aksi Kartu: Bandingkan & Unduh -->
+                  <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      data-action="compare"
+                      data-id="${item.id}"
+                      class="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 hover:text-white border border-slate-700/80 text-xs font-semibold transition-all"
+                    >
+                      <svg class="w-3.5 h-3.5 text-indigo-400 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <line x1="12" y1="3" x2="12" y2="21" />
+                      </svg>
+                      <span>Bandingkan</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      data-action="download"
+                      data-id="${item.id}"
+                      class="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all"
+                    >
+                      <svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>Unduh</span>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join('');
+      }
+
+      // -------------------- ANIMASI ANGKA RINGKASAN --------------------
+      function updateSummaryStats() {
+        const totalFiles = state.items.length;
+        const origBytes = state.items.reduce((acc, it) => acc + it.originalSize, 0);
+        const compBytes = state.items.reduce((acc, it) => acc + (it.compressedSize || it.originalSize), 0);
+        const savedBytes = Math.max(0, origBytes - compBytes);
+        const savedPct = origBytes > 0 ? (savedBytes / origBytes) * 100 : 0;
+
+        if (state.statsAnimationFrame) {
+          cancelAnimationFrame(state.statsAnimationFrame);
+        }
+
+        const start = { ...state.displayedStats };
+        const duration = 420;
+        const startTime = performance.now();
+
+        function animateFrame(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+
+          const curOrig = start.origBytes + (origBytes - start.origBytes) * ease;
+          const curComp = start.compBytes + (compBytes - start.compBytes) * ease;
+          const curSaved = start.savedBytes + (savedBytes - start.savedBytes) * ease;
+          const curPct = start.savedPct + (savedPct - start.savedPct) * ease;
+
+          dom.statTotalFiles.textContent = `${totalFiles} Gambar`;
+          dom.statOriginalSize.textContent = formatBytes(curOrig);
+          dom.statCompressedSize.textContent = formatBytes(curComp);
+          dom.statSavedBytes.textContent = formatBytes(curSaved);
+          dom.statSavedPercent.textContent = `${curPct.toFixed(1)}%`;
+
+          if (progress < 1) {
+            state.statsAnimationFrame = requestAnimationFrame(animateFrame);
+          } else {
+            state.displayedStats = {
+              files: totalFiles,
+              origBytes,
+              compBytes,
+              savedBytes,
+              savedPct,
+            };
+          }
+        }
+
+        state.statsAnimationFrame = requestAnimationFrame(animateFrame);
+      }
+
+      // -------------------- UNDUH INDIVIDUAL & BATCH (.ZIP) --------------------
+      function downloadSingleItem(item) {
+        if (!item || !item.compressedUrl) return;
+        const link = document.createElement('a');
+        link.href = item.compressedUrl;
+        link.download = buildOutputFilename(item.name, item.outputType);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      async function downloadAllAsZip() {
+        if (state.items.length === 0) return;
+
+        // Jika hanya 1 file, langsung unduh tanpa perlu membungkus ZIP
+        if (state.items.length === 1) {
+          downloadSingleItem(state.items[0]);
+          showToast('Mengunduh gambar hasil kompresi...', 'success');
+          return;
+        }
+
+        if (typeof JSZip === 'undefined') {
+          showToast('Mengunduh file satu per satu...', 'info');
+          state.items.forEach((item, index) => {
+            setTimeout(() => downloadSingleItem(item), index * 250);
+          });
+          return;
+        }
+
+        dom.downloadAllBtn.disabled = true;
+        const originalHTML = dom.downloadAllBtn.innerHTML;
+        dom.downloadAllBtn.innerHTML = `
+          <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+          </svg>
+          <span>Membuat ZIP...</span>
+        `;
+
+        try {
+          const zip = new JSZip();
+          const usedNames = new Set();
+
+          for (const item of state.items) {
+            if (!item.compressedBlob) continue;
+            let fileName = buildOutputFilename(item.name, item.outputType);
+            // Hindari nama file duplikat di dalam ZIP
+            if (usedNames.has(fileName)) {
+              const dotIdx = fileName.lastIndexOf('.');
+              fileName = `${fileName.slice(0, dotIdx)}-${Math.random().toString(36).slice(2, 5)}${fileName.slice(dotIdx)}`;
+            }
+            usedNames.add(fileName);
+            zip.file(fileName, item.compressedBlob);
+          }
+
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const zipUrl = URL.createObjectURL(zipBlob);
+          const link = document.createElement('a');
+          link.href = zipUrl;
+          link.download = `pixpress-compressed-${state.items.length}-files.zip`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
+
+          showToast(`${state.items.length} file berhasil diunduh dalam format .ZIP!`, 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('Gagal membuat file ZIP.', 'warning');
+        } finally {
+          dom.downloadAllBtn.disabled = false;
+          dom.downloadAllBtn.innerHTML = originalHTML;
+        }
+      }
+
+      // -------------------- MODAL PERBANDINGAN BEFORE/AFTER --------------------
+      function updateSplitPosition(percent) {
+        const clamped = Math.max(0, Math.min(100, percent));
+        state.sliderPercent = clamped;
+        dom.compareOriginalClip.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
+        dom.compareDivider.style.left = `${clamped}%`;
+      }
+
+      function populateCompareModal(item) {
+        dom.modalTitle.textContent = item.name;
+        dom.compareOriginalImg.src = item.originalUrl;
+        dom.compareCompressedImg.src = item.compressedUrl;
+
+        const savedBytes = item.originalSize - item.compressedSize;
+        const pct = item.originalSize > 0 ? ((savedBytes / item.originalSize) * 100).toFixed(1) : '0.0';
+
+        dom.badgeOriginalSize.textContent = formatBytes(item.originalSize);
+        dom.badgeCompressedSize.textContent = `${formatBytes(item.compressedSize)} (${savedBytes > 0 ? '-' + pct + '%' : 'Sama'})`;
+
+        dom.modalStatsSummary.innerHTML = `
+          Resolusi: <span class="text-white font-semibold">${item.newWidth}×${item.newHeight}px</span> •
+          Format: <span class="text-indigo-300 font-semibold">${getMimeLabel(item.outputType)}</span> •
+          Hemat: <span class="text-emerald-400 font-bold">${formatBytes(Math.max(0, savedBytes))} (${pct}%)</span>
+        `;
+      }
+
+      function openCompareModal(itemId) {
+        const item = state.items.find((i) => i.id === itemId);
+        if (!item) return;
+
+        state.activeCompareId = itemId;
+        state.isZoomed = false;
+        applyZoomState();
+        updateSplitPosition(50);
+        populateCompareModal(item);
+
+        dom.compareModal.classList.remove('hidden');
+        dom.compareModal.classList.add('flex', 'modal-backdrop-enter');
+        dom.modalPanel.classList.add('modal-panel-enter');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeCompareModal() {
+        state.activeCompareId = null;
+        dom.compareModal.classList.add('hidden');
+        dom.compareModal.classList.remove('flex', 'modal-backdrop-enter');
+        dom.modalPanel.classList.remove('modal-panel-enter');
+        document.body.style.overflow = '';
+      }
+
+      function applyZoomState() {
+        const scaleVal = state.isZoomed ? 'scale(1.85)' : 'scale(1)';
+        dom.compareOriginalImg.style.transform = scaleVal;
+        dom.compareCompressedImg.style.transform = scaleVal;
+        dom.zoomLabel.textContent = state.isZoomed ? 'Zoom 2x' : 'Zoom 1x';
+      }
+
+      // -------------------- EVENT LISTENERS --------------------
+      // 1. Dropzone Click & Keyboard
+      dom.dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('#loadSampleBtn')) return;
+        dom.fileInput.click();
+      });
+
+      dom.selectFilesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.fileInput.click();
+      });
+
+      dom.loadSampleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadSampleImages();
+      });
+
+      dom.dropzone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          dom.fileInput.click();
+        }
+      });
+
+      dom.fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleIncomingFiles(e.target.files);
+          e.target.value = '';
+        }
+      });
+
+      // 2. Drag & Drop Events
+      ['dragenter', 'dragover'].forEach((evtName) => {
+        dom.dropzone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropzone.classList.add('border-indigo-400', 'bg-indigo-950/30', 'drag-active-ring');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach((evtName) => {
+        dom.dropzone.addEventListener(evtName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropzone.classList.remove('border-indigo-400', 'bg-indigo-950/30', 'drag-active-ring');
+        });
+      });
+
+      dom.dropzone.addEventListener('drop', (e) => {
+        if (e.dataTransfer && e.dataTransfer.files) {
+          handleIncomingFiles(e.dataTransfer.files);
+        }
+      });
+
+      // 3. Format Output Pills
+      dom.formatPills.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const selectedFormat = btn.dataset.format;
+          if (state.outputFormat === selectedFormat) return;
+          state.outputFormat = selectedFormat;
+
+          // Update tampilan pill aktif
+          dom.formatPills.forEach((p) => {
+            const isActive = p.dataset.format === selectedFormat;
+            p.className = isActive
+              ? 'format-pill relative flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-500/15'
+              : 'format-pill flex flex-col items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all duration-200 bg-slate-800/60 border-slate-700/70 text-slate-300 hover:bg-slate-800 hover:text-white';
+          });
+
+          updateQualityHint();
+          reprocessAllItems();
+        });
+      });
+
+      // 4. Quality Slider (dengan debounce halus saat digeser)
+      let sliderDebounceTimer = null;
+
+      function updateQualityHint() {
+        const pct = Math.round(state.quality * 100);
+        dom.qualityBadge.textContent = `${pct}%`;
+
+        // Hitung posisi persentase track slider (min 10, max 100)
+        const trackPct = ((pct - 10) / 90) * 100;
+        dom.qualitySlider.style.setProperty('--slider-pct', `${trackPct}%`);
+
+        if (state.outputFormat === 'image/png') {
+          dom.qualityHint.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block shrink-0"></span>
+            <span>Format PNG bersifat lossless; atur resolusi untuk memperkecil ukuran.</span>
+          `;
+        } else if (pct < 50) {
+          dom.qualityHint.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block shrink-0"></span>
+            <span>Kompresi maksimal — ukuran file sangat kecil untuk thumbnail.</span>
+          `;
+        } else if (pct <= 85) {
+          dom.qualityHint.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0"></span>
+            <span>Kualitas seimbang — ideal untuk website &amp; media sosial.</span>
+          `;
+        } else {
+          dom.qualityHint.innerHTML = `
+            <span class="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block shrink-0"></span>
+            <span>Kualitas tinggi — detail visual tetap tajam hampir tanpa artefak.</span>
+          `;
+        }
+      }
+
+      dom.qualitySlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        state.quality = val / 100;
+        updateQualityHint();
+
+        clearTimeout(sliderDebounceTimer);
+        sliderDebounceTimer = setTimeout(() => {
+          reprocessAllItems();
+        }, 160);
+      });
+
+      // 5. Max Width Selector
+      dom.maxWidthSelect.addEventListener('change', (e) => {
+        state.maxWidth = e.target.value;
+        reprocessAllItems();
+      });
+
+      // 6. Batch Actions (Download ZIP & Clear All)
+      dom.downloadAllBtn.addEventListener('click', downloadAllAsZip);
+
+      dom.clearAllBtn.addEventListener('click', () => {
+        state.items.forEach((item) => {
+          if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
+        });
+        state.items = [];
+        renderCards(false);
+        updateSummaryStats();
+        showToast('Semua daftar gambar telah dibersihkan.', 'info');
+      });
+
+      // 7. Delegasi Event pada Kartu Hasil (Bandingkan, Unduh, Hapus)
+      dom.cardsGrid.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const id = btn.dataset.id;
+        const item = state.items.find((i) => i.id === id);
+        if (!item) return;
+
+        if (action === 'compare') {
+          openCompareModal(id);
+        } else if (action === 'download') {
+          downloadSingleItem(item);
+        } else if (action === 'delete') {
+          if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
+          state.items = state.items.filter((i) => i.id !== id);
+          renderCards(false);
+          updateSummaryStats();
+        }
+      });
+
+      // 8. Interaksi Split-View Slider di Modal (Mouse & Touch)
+      let isDraggingSplit = false;
+
+      function handleStagePointerMove(clientX) {
+        const rect = dom.compareStage.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const pct = ((clientX - rect.left) / rect.width) * 100;
+        updateSplitPosition(pct);
+      }
+
+      dom.compareStage.addEventListener('mousedown', (e) => {
+        isDraggingSplit = true;
+        handleStagePointerMove(e.clientX);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingSplit) return;
+        handleStagePointerMove(e.clientX);
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDraggingSplit = false;
+      });
+
+      dom.compareStage.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+          isDraggingSplit = true;
+          handleStagePointerMove(e.touches[0].clientX);
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isDraggingSplit || e.touches.length === 0) return;
+        handleStagePointerMove(e.touches[0].clientX);
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        isDraggingSplit = false;
+      });
+
+      // 9. Kontrol Modal (Close, Zoom, Unduh)
+      dom.closeModalBtn.addEventListener('click', closeCompareModal);
+      dom.compareModal.addEventListener('click', (e) => {
+        if (e.target === dom.compareModal) {
+          closeCompareModal();
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.activeCompareId) {
+          closeCompareModal();
+        }
+      });
+
+      dom.toggleZoomBtn.addEventListener('click', () => {
+        state.isZoomed = !state.isZoomed;
+        applyZoomState();
+      });
+
+      dom.modalDownloadBtn.addEventListener('click', () => {
+        const item = state.items.find((i) => i.id === state.activeCompareId);
+        if (item) downloadSingleItem(item);
+      });
+
+      // 10. Scroll Reveal Animation (IntersectionObserver)
+      function initScrollReveal() {
+        const revealEls = document.querySelectorAll('.reveal-on-scroll');
+        if (!('IntersectionObserver' in window)) {
+          revealEls.forEach((el) => el.classList.add('is-visible'));
+          return;
+        }
+
+        const observer = new IntersectionObserver(
+          (entries, obs) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                obs.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12 }
+        );
+
+        revealEls.forEach((el) => observer.observe(el));
+      }
+
+      // 11. Integrasi Pengiriman Formspree via Fetch API (AJAX)
+      function initContactForm() {
+        const contactForm = document.getElementById('contactForm');
+        const submitBtn = document.getElementById('contactSubmitBtn');
+        const statusBox = document.getElementById('contactStatus');
+        if (!contactForm || !submitBtn || !statusBox) return;
+
+        const defaultBtnHTML = submitBtn.innerHTML;
+
+        function setStatusMessage(type, text) {
+          statusBox.classList.remove(
+            'hidden',
+            'bg-emerald-500/15',
+            'border-emerald-500/40',
+            'text-emerald-200',
+            'bg-rose-500/15',
+            'border-rose-500/40',
+            'text-rose-200'
+          );
+
+          if (type === 'success') {
+            statusBox.classList.add('bg-emerald-500/15', 'border-emerald-500/40', 'text-emerald-200', 'modal-panel-enter');
+            statusBox.innerHTML = `
+              <div class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                <span>${text}</span>
+              </div>
+            `;
+          } else {
+            statusBox.classList.add('bg-rose-500/15', 'border-rose-500/40', 'text-rose-200', 'modal-panel-enter');
+            statusBox.innerHTML = `
+              <div class="flex items-start gap-2.5">
+                <svg class="w-4 h-4 text-rose-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>${text}</span>
+              </div>
+            `;
+          }
+        }
+
+        contactForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `
+            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+            </svg>
+            <span>Mengirim Pesan...</span>
+          `;
+
+          try {
+            const formData = new FormData(contactForm);
+            const response = await fetch(contactForm.action, {
+              method: 'POST',
+              body: formData,
+              headers: {
+                Accept: 'application/json',
+              },
+            });
+
+            if (response.ok) {
+              contactForm.reset();
+              setStatusMessage('success', 'Terima kasih! Pesan Anda berhasil terkirim dan akan segera saya balas.');
+              showToast('Pesan berhasil dikirim via Formspree!', 'success');
+            } else {
+              const data = await response.json().catch(() => null);
+              const errorDetail =
+                data && Array.isArray(data.errors) && data.errors.length > 0
+                  ? data.errors.map((err) => err.message).join(', ')
+                  : 'Terjadi kendala saat mengirim pesan. Periksa kembali isian Anda.';
+              setStatusMessage('error', errorDetail);
+              showToast('Gagal mengirim pesan.', 'warning');
+            }
+          } catch (error) {
+            console.error('Formspree submit error:', error);
+            setStatusMessage('error', 'Koneksi terputus. Pastikan perangkat Anda terhubung ke internet lalu coba lagi.');
+            showToast('Koneksi gagal saat mengirim pesan.', 'warning');
+          } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = defaultBtnHTML;
+          }
+        });
+      }
+
+      // Inisialisasi tampilan awal
+      updateQualityHint();
+      initScrollReveal();
+      initContactForm();
+    })();
+  </script>
+</body>
+</html>
